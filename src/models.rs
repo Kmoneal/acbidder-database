@@ -3,7 +3,6 @@ use super::schema::listings;
 #[derive(Insertable)]
 #[table_name="listings"]
 pub struct NewAdServer<'a> {
-	//pub id: i32,
 	pub domain: &'a str,
 }
 

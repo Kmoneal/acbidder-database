@@ -31,10 +31,8 @@ pub fn create_listing<'a>(conn: &MysqlConnection, domain_name: &'a str) -> usize
 
     //ensures that no special characters are used and valid domain name characters are used
     for character in domain_name.chars() {
-    	if !character.is_ascii_alphanumeric() {
-    		if character != '.' {
-    			return 0;
-    		}
+    	if !character.is_ascii_alphanumeric() && character != '.' && character != '-' {
+    		return 0;
     	}
     }
 
@@ -62,10 +60,8 @@ pub fn is_whitelisted(conn: &MysqlConnection, domain_name: String) -> bool {
     use schema::listings::dsl::*;
 
     for character in domain_name.chars() {
-    	if !character.is_ascii_alphanumeric() {
-    		if character != '.' {
-    			return false;
-    		}
+    	if !character.is_ascii_alphanumeric() && character != '.' && character != '-' {
+    		return false;
     	}
     }
 
@@ -84,4 +80,25 @@ pub fn is_whitelisted(conn: &MysqlConnection, domain_name: String) -> bool {
     	Err(e) => println!("Could not check if whitelisted: {}", e),
     }
     return false;
+}
+
+pub fn maintain_database() {
+    use std::{thread, time};
+    let duration = time::Duration::from_sec(3600);
+
+	let connection = establish_connection();
+
+	const RPC_ENDPOINT: &str = "http://localhost:8545";
+    let (_eloop, http) = web3::transports::Http::new(RPC_ENDPOINT)
+        .unwrap();
+    let web3 = web3::Web3::new(http);
+    let adchain_registry = adchain_registry::RegistryInstance::new(&web3);
+
+    while 1 {
+    	let _is_whitelisted = adchain_registry.is_in_registry("fox.com");
+        if _is_whitelisted {
+    	    let creation = create_listing(&connection, "fox.com");
+    	    assert!(creation == 1, "Insertion failed");
+        }
+    }
 }
