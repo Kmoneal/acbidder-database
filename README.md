@@ -5,6 +5,7 @@
 Must have diesel-cli installed
 
 ```shell
+sudo apt-get install mysql-server libpq-dev libmysqlclient-dev
 cargo install diesel_cli
 ```
 
