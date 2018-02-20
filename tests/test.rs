@@ -1,5 +1,5 @@
-extern crate diesel;
 extern crate acbidder_database;
+extern crate diesel;
 extern crate web3;
 
 use acbidder_database::establish_connection;
@@ -12,11 +12,9 @@ use diesel::query_dsl::limit_dsl::LimitDsl;
 use diesel::RunQueryDsl;
 use acbidder_database::adchain_registry;
 
-
 ///---------------------------------------------------------------------
 ///NOTE: Tests must be run with a clean table and using -- --test-threads=1
 ///---------------------------------------------------------------------
-
 
 //first.com
 //check that the ad_server is being added to listing table
@@ -26,10 +24,13 @@ fn test_1_add_ad_server_to_listing() {
     let creation = create_listing(&connection, "first.com");
     assert!(creation == 1, "Insertion failed");
 
-    let results = listings.limit(5).load::<AdServer>(&connection).expect("Error loading adserver");
+    let results = listings
+        .limit(5)
+        .load::<AdServer>(&connection)
+        .expect("Error loading adserver");
     for ad_server in results {
-    	assert_eq!(ad_server.domain, format!("first.com"));
-    	println!("{}", ad_server.domain);
+        assert_eq!(ad_server.domain, format!("first.com"));
+        println!("{}", ad_server.domain);
     }
 
     let deletion = delete_listing(&connection, format!("first.com"));
@@ -40,16 +41,19 @@ fn test_1_add_ad_server_to_listing() {
 //check that the ad_server with the same name cannot be added to listing
 #[test]
 fn test_2_add_invalid_ad_server_to_listing() {
-	let connection = establish_connection();
-	let creation = create_listing(&connection, "second.com");
-	assert!(creation == 1, "Insertion failed");
-	let creation = create_listing(&connection, "second.com");
-	assert!(creation == 0, "Repeat insertion succeeded");
-    
-    let results = listings.limit(5).load::<AdServer>(&connection).expect("Error loading adserver");
+    let connection = establish_connection();
+    let creation = create_listing(&connection, "second.com");
+    assert!(creation == 1, "Insertion failed");
+    let creation = create_listing(&connection, "second.com");
+    assert!(creation == 0, "Repeat insertion succeeded");
+
+    let results = listings
+        .limit(5)
+        .load::<AdServer>(&connection)
+        .expect("Error loading adserver");
     for ad_server in results {
-    	assert_eq!(ad_server.domain, format!("second.com"));
-    	println!("{}", ad_server.domain);
+        assert_eq!(ad_server.domain, format!("second.com"));
+        println!("{}", ad_server.domain);
     }
 
     let deletion = delete_listing(&connection, format!("second.com"));
@@ -71,9 +75,7 @@ fn test_3_add_and_remove_ad_server_from_listing() {
 //fourth.com
 //placeholder
 #[test]
-fn test_4() {
-    
-}
+fn test_4() {}
 
 //fifth.com
 //check that special characters cannot be used as a domain name
@@ -81,24 +83,38 @@ fn test_4() {
 fn test_5_add_invalid_ad_server_from_listing_using_special_characters() {
     let connection = establish_connection();
     let creation = create_listing(&connection, "*fifth.com");
-    assert!(creation == 0, "Insertion with special character * succeeded");
+    assert!(
+        creation == 0,
+        "Insertion with special character * succeeded"
+    );
     let creation = create_listing(&connection, "the_fifth.com");
-    assert!(creation == 0, "Insertion with special character _ succeeded");
+    assert!(
+        creation == 0,
+        "Insertion with special character _ succeeded"
+    );
     let creation = create_listing(&connection, "%fifth.com");
-    assert!(creation == 0, "Insertion with special character % succeeded");
-
+    assert!(
+        creation == 0,
+        "Insertion with special character % succeeded"
+    );
 
     let deletion = delete_listing(&connection, format!("%fifth.com"));
-    assert!(deletion == 0, "Deletion succeeded when there are no matches");
+    assert!(
+        deletion == 0,
+        "Deletion succeeded when there are no matches"
+    );
 }
 
 //sixth.com
 //check that a non-existing domain cannot be deleted and returns proper response
 #[test]
 fn test_6_invalid_remove_ad_server_from_listing() {
-	let connection = establish_connection();
+    let connection = establish_connection();
     let deletion = delete_listing(&connection, format!("definitelyNotReal.com"));
-    assert!(deletion == 0, "Deletion succeeded when there are no matches");
+    assert!(
+        deletion == 0,
+        "Deletion succeeded when there are no matches"
+    );
 }
 
 //seventh.com
@@ -110,7 +126,10 @@ fn test_7_add_ad_server_to_listing_and_valid_whitelist() {
     assert!(creation == 1, "Insertion failed");
 
     let is_whitelisted = is_whitelisted(&connection, format!("seventh.com"));
-    assert!(is_whitelisted, "is_whitelisted returned false when entry exists");
+    assert!(
+        is_whitelisted,
+        "is_whitelisted returned false when entry exists"
+    );
 
     let deletion = delete_listing(&connection, format!("seventh.com"));
     assert!(deletion == 1, "Deletion failed");
@@ -125,12 +144,14 @@ fn test_8_add_ad_server_to_listing_and_invalid_whitelist() {
     assert!(creation == 1, "Insertion failed");
 
     let is_whitelisted = is_whitelisted(&connection, format!("Noteighth.com"));
-    assert!(!is_whitelisted, "is_whitelisted returned true when entry does not exits");
+    assert!(
+        !is_whitelisted,
+        "is_whitelisted returned true when entry does not exits"
+    );
 
     let deletion = delete_listing(&connection, format!("eighth.com"));
     assert!(deletion == 1, "Deletion failed");
 }
-
 
 //nineth.com
 //check that multiple listings can be loaded
@@ -145,30 +166,32 @@ fn test_9_add_ad_server_to_listing_and_show_ad_servers() {
     assert!(creation == 1, "Insertion failed");
     let creation = create_listing(&connection, "dnineth.com");
     assert!(creation == 1, "Insertion failed");
-    
 
-	let results = listings.limit(5).load::<AdServer>(&connection).expect("Error loading adserver");
+    let results = listings
+        .limit(5)
+        .load::<AdServer>(&connection)
+        .expect("Error loading adserver");
 
-	assert!(results.len() == 4);
-	let mut iteration = 0;
-	for ad_server in results {
-	    if iteration == 0 {
-	    	assert_eq!(ad_server.domain, format!("anineth.com"));
-	    }
-	    if iteration == 1 {
-	    	assert_eq!(ad_server.domain, format!("bnineth.com"));
-	    }
-	    if iteration == 2 {
-	    	assert_eq!(ad_server.domain, format!("cnineth.com"));
-	    }
-	    if iteration == 3 {
-	    	assert_eq!(ad_server.domain, format!("dnineth.com"));
-	    }
-	    iteration += 1;
-	}
+    assert!(results.len() == 4);
+    let mut iteration = 0;
+    for ad_server in results {
+        if iteration == 0 {
+            assert_eq!(ad_server.domain, format!("anineth.com"));
+        }
+        if iteration == 1 {
+            assert_eq!(ad_server.domain, format!("bnineth.com"));
+        }
+        if iteration == 2 {
+            assert_eq!(ad_server.domain, format!("cnineth.com"));
+        }
+        if iteration == 3 {
+            assert_eq!(ad_server.domain, format!("dnineth.com"));
+        }
+        iteration += 1;
+    }
 
-	let deletion = delete_listing(&connection, format!("%nineth.com"));
-	assert!(deletion == 4, "Deletion failed");
+    let deletion = delete_listing(&connection, format!("%nineth.com"));
+    assert!(deletion == 4, "Deletion failed");
 }
 
 //tenth.com
@@ -198,15 +221,20 @@ fn test_11_add_ad_server_to_listing_and_special_character_whitelisted() {
     assert!(creation == 1, "Insertion failed");
 
     let _is_whitelisted = is_whitelisted(&connection, format!("_leventh.com"));
-    assert!(!_is_whitelisted, "is_whitelisted returned true when entry does not exits");
+    assert!(
+        !_is_whitelisted,
+        "is_whitelisted returned true when entry does not exits"
+    );
 
     let _is_whitelisted = is_whitelisted(&connection, format!("%venth.com"));
-    assert!(!_is_whitelisted, "is_whitelisted returned true when entry does not exits");
+    assert!(
+        !_is_whitelisted,
+        "is_whitelisted returned true when entry does not exits"
+    );
 
     let deletion = delete_listing(&connection, format!("eleventh.com"));
     assert!(deletion == 1, "Deletion failed");
 }
-
 
 //These tests were an attempt to test web3 but have the same issues that warrant this crate (eventloop being dropped causing thread to be hungup)
 // #[test]

@@ -7,14 +7,14 @@ use web3::futures::Future;
 use tiny_keccak::Keccak;
 use std::convert::From;
 
-pub struct RegistryInstance<'a, T: 'a + web3::Transport> {
-    instance: Contract<&'a T>
+pub struct RegistryInstance<T: web3::Transport> {
+    instance: Contract<T>
 }
 
-impl<'a, T: web3::Transport> RegistryInstance<'a, T> {
-	//
-    pub fn new(web3: &'a web3::Web3<T>) -> RegistryInstance<'a, T> {
-        const REGISTRY_ADDR: &str = "0xb5a9bb79f88c0ac336c259f9d296e01df19b1048";
+impl<T: web3::Transport> RegistryInstance<T> {
+    //
+    pub fn new(web3: & web3::Web3<T>) -> RegistryInstance<T> {
+        const REGISTRY_ADDR: &str = "0x8009a230dc908e71befafba36e09efef2513640d";
 
         let instance = Contract::from_json(
             web3.eth(),
@@ -25,8 +25,8 @@ impl<'a, T: web3::Transport> RegistryInstance<'a, T> {
             instance
         }
     }
-	
-	//returns true if the domain passed in is in the adchain registry
+    
+    //returns true if the domain passed in is in the adchain registry
     pub fn is_in_registry(&self, domain: &str) -> bool {
         let my_account: Address = "0x494b26d0fea32296d5b1d011b2c1f95cb8e1d175".parse().unwrap();
 
@@ -42,11 +42,11 @@ impl<'a, T: web3::Transport> RegistryInstance<'a, T> {
         // let domain = String::from(domain).into_token();
 
         let result: bool = match self.instance
-		    .query("isWhitelisted", 
-			(hash, ), 
-			Some(my_account),
+            .query("isWhitelisted", 
+            (hash, ), 
+            Some(my_account),
             web3::contract::Options::default(), 
-			Some(BlockNumber::Latest)).wait() {
+            Some(BlockNumber::Latest)).wait() {
             Ok(result) => result,
             Err(err) => panic!("Network was unreachable! {:?}", err),
         };

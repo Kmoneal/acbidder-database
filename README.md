@@ -21,3 +21,9 @@ diesel migration redo
 ```
 
 Must change the account and registry address in adchain_registry.rs
+
+Must do tests using 1 thread
+
+```rust
+cargo test -- --test-threads=1
+```
