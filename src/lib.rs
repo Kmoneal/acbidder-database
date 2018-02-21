@@ -101,10 +101,6 @@ pub fn maintain_database() {
     //constants to compare values against
     const RPC_ENDPOINT: &str = "http://localhost:8545";
     const REGISTRY_ADDR: &str = "0x8009a230dc908e71befafba36e09efef2513640d";//THIS CHANGES BASED ON NETWORK
-    const APPLICATION_HASH: &str = "0x5cde15b9901ca13a7e2eb4fb919870d1bde9e8d93d9aa5e26945b42190067bdc";
-    const NEW_LISTING_WHITELISTED_HASH: &str = "0xa7dee6157e26f0945c6e2fa27b51c0811370eb1863f1e5285e8dea4291fdd3de";
-    const APPLICATION_REMOVED_HASH: &str = "2e5ec035f6eac8ff1cf7cdf36cfeca7c85413f9f67652dc2c13d20f337204a26";
-    const LISTING_REMOVED_HASH: &str = "d1ffb796b7108387b2f02adf47b4b81a1690cf2a190422c87a4f670780103e63";
 
     //create web3 transport and communication
     let (_eloop, http) = web3::transports::Http::new(RPC_ENDPOINT).expect("Web3 failed to create transport.");
@@ -132,60 +128,14 @@ pub fn maintain_database() {
     let filter_stream = filter_stream_events.stream(Duration::from_secs(0))
         .for_each(|log| {
             let data_vector = log.data.0;
-
             let domain_name_hash = (&data_vector[0..32]).to_hex();
-
-            println!("Domain Name Hash: {}", domain_name_hash);
-
-            // if appplication was made, store applicant info in applications HashMap
-            if log.topics[0] == H256::from_str(APPLICATION_HASH).expect("Const String could not be converted to H256.") {
-                println!("Application Event");
-                let mut domain_name = String::new();
-                for iterator in 0..data_vector.len() {
-                    if data_vector[(data_vector.len() - 1 - iterator) as usize] > 122 {
-                        break;
-                    }
-                    else if data_vector[(data_vector.len() - 1 - iterator) as usize] > 44 {
-                        domain_name.push(data_vector[(data_vector.len() - 1 - iterator) as usize] as char);
-                    }
-                    else {
-                        break;
-                    }
-                }
-                unsafe {
-                    domain_name.as_mut_vec().reverse();
-                }
-                println!("Application Domain Name: {}", domain_name);
-                (*applications.lock().expect("Lock could not be unwrapped.")).insert(domain_name_hash, domain_name);
-            }
-            else if log.topics[0] == H256::from_str(NEW_LISTING_WHITELISTED_HASH).expect("Const String could not be converted to H256.") {
-                println!("New Listing Whitelisted Event");
-                println!("Listing Domain Name: {:?}", (*applications.lock().expect("Lock could not be unwrapped.")).get(&domain_name_hash));
-                let connection = establish_connection();
-                let _creation = create_listing(&connection, (applications.lock().expect("Lock could not be unwrapped.").get(&domain_name_hash))
-                    .expect("Error retrieving information from HashMap."));
-                println!("Should be 1 entry: {}", _creation);
-            }
-            else if log.topics[0] == H256::from_str(LISTING_REMOVED_HASH).expect("Const String could not be converted to H256.") {
-                println!("Listing Removed Event");
-                println!("Listing Domain Name: {:?}", (*applications.lock().expect("Lock could not be unwrapped.")).get(&domain_name_hash));
-                let connection = establish_connection();
-                let _deletion = delete_listing(&connection, (applications.lock().expect("Lock could not be unwrapped.").get(&domain_name_hash))
-                    .expect("Error retrieving information from HashMap.").to_string());
-                println!("Should be 1 entry: {}", _deletion);
-                (*applications.lock().expect("Lock could not be unwrapped.")).remove(&domain_name_hash);
-            }
-            else if log.topics[0] == H256::from_str(APPLICATION_REMOVED_HASH).expect("Const String could not be converted to H256.") {
-                println!("Application Removed Event");
-                println!("Listing Domain Name: {:?}", (*applications.lock().expect("Lock could not be unwrapped.")).get(&domain_name_hash));
-                (*applications.lock().expect("Lock could not be unwrapped.")).remove(&domain_name_hash);
-            }
+            let topics = log.topics[0];
+            log_handler(domain_name_hash, &applications, topics, data_vector);
             Ok(())
         })
         .map_err(|_| {
             println!("Error with log stream");
         });
-
     //get all the past events
     let past_logs = match filter_past_events.logs().wait() {
         Ok(val) => val,
@@ -195,11 +145,24 @@ pub fn maintain_database() {
     //past_logs iterator
     for log in past_logs {
         let data_vector = log.data.0;
-
         let domain_name_hash = (&data_vector[0..32]).to_hex();
+        let topics = log.topics[0];
+        log_handler(domain_name_hash, &applications, topics, data_vector);
+    }
+    //start to iterate through new events
+    filter_stream.wait().expect("Could not start stream of new logs.");
+}
 
-        println!("Domain Name Hash: {}", domain_name_hash);
-        if log.topics[0] == H256::from_str(APPLICATION_HASH).expect("Const String could not be converted to H256.") {
+
+
+fn log_handler(domain_name_hash: String, applications: & Mutex<HashMap<String, String>>, topics: H256, data_vector: Vec<u8>) {
+    const APPLICATION_HASH: &str = "0x5cde15b9901ca13a7e2eb4fb919870d1bde9e8d93d9aa5e26945b42190067bdc";
+    const NEW_LISTING_WHITELISTED_HASH: &str = "0xa7dee6157e26f0945c6e2fa27b51c0811370eb1863f1e5285e8dea4291fdd3de";
+    const APPLICATION_REMOVED_HASH: &str = "2e5ec035f6eac8ff1cf7cdf36cfeca7c85413f9f67652dc2c13d20f337204a26";
+    const LISTING_REMOVED_HASH: &str = "d1ffb796b7108387b2f02adf47b4b81a1690cf2a190422c87a4f670780103e63";
+
+    println!("Domain Name Hash: {}", domain_name_hash);
+        if topics == H256::from_str(APPLICATION_HASH).expect("Const String could not be converted to H256.") {
             println!("Application Event");
             let mut domain_name = String::new();
             for iterator in 0..data_vector.len() {
@@ -219,7 +182,7 @@ pub fn maintain_database() {
             println!("Application Domain Name: {}", domain_name);
             (*applications.lock().expect("Lock could not be unwrapped.")).insert(domain_name_hash, domain_name);
         }
-        else if log.topics[0] == H256::from_str(NEW_LISTING_WHITELISTED_HASH).expect("Const String could not be converted to H256.") {
+        else if topics == H256::from_str(NEW_LISTING_WHITELISTED_HASH).expect("Const String could not be converted to H256.") {
             println!("New Listing Whitelisted Event");
             println!("Listing Domain Name: {:?}", (*applications.lock().expect("Lock could not be unwrapped.")).get(&domain_name_hash));
             let connection = establish_connection();
@@ -227,7 +190,7 @@ pub fn maintain_database() {
                 .expect("Error retrieving information from HashMap."));
             println!("Should be 1 entry: {}", _creation);
         }
-        else if log.topics[0] == H256::from_str(LISTING_REMOVED_HASH).expect("Const String could not be converted to H256.") {
+        else if topics == H256::from_str(LISTING_REMOVED_HASH).expect("Const String could not be converted to H256.") {
             println!("Listing Removed Event");
             println!("Listing Domain Name: {:?}", (*applications.lock().expect("Lock could not be unwrapped.")).get(&domain_name_hash));
             let connection = establish_connection();
@@ -236,13 +199,9 @@ pub fn maintain_database() {
             println!("Should be 1 entry: {}", _deletion);
             (*applications.lock().expect("Lock could not be unwrapped.")).remove(&domain_name_hash);
         }
-        else if log.topics[0] == H256::from_str(APPLICATION_REMOVED_HASH).expect("Const String could not be converted to H256.") {
+        else if topics == H256::from_str(APPLICATION_REMOVED_HASH).expect("Const String could not be converted to H256.") {
             println!("Application Removed Event");
             println!("Listing Domain Name: {:?}", (*applications.lock().expect("Lock could not be unwrapped.")).get(&domain_name_hash));
             (*applications.lock().expect("Lock could not be unwrapped.")).remove(&domain_name_hash);
         }
-    }
-
-    //start to iterate through new events
-    filter_stream.wait().expect("Could not start stream of new logs.");
 }
