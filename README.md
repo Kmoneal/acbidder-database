@@ -5,7 +5,8 @@
 Must have diesel-cli installed
 
 ```shell
-sudo apt-get install mysql-server libpq-dev libmysqlclient-dev
+sudo apt-get update
+sudo apt-get install mysql-server libpq-dev libmysqlclient-dev sqlite3 libsqlite3-dev
 cargo install diesel_cli
 ```
 
@@ -16,7 +17,11 @@ echo DATABASE_URL=mysql://username:password@localhost/acbidder_database
 ```
 
 Must have clean tables for running tests
-
+```shell
+diesel setup
+diesel migration run
+````
+or
 ```shell
 diesel migration redo
 ```
