@@ -203,7 +203,7 @@ fn test_10_add_ad_server_to_listing_and_special_character_deletion() {
     assert!(creation == 1, "Insertion failed");
 
     let deletion = delete_listing(&connection, format!("%.com"));
-    assert!(deletion == 1, "Deletion failed");
+    assert!(deletion == 1, "Deletion failed. There may be persisting entries from before.");
 
     let creation = create_listing(&connection, "tenth.com");
     assert!(creation == 1, "Insertion failed");
