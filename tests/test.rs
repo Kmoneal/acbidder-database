@@ -235,34 +235,3 @@ fn test_11_add_ad_server_to_listing_and_special_character_whitelisted() {
     let deletion = delete_listing(&connection, format!("eleventh.com"));
     assert!(deletion == 1, "Deletion failed");
 }
-
-//These tests were an attempt to test web3 but have the same issues that warrant this crate (eventloop being dropped causing thread to be hungup)
-// #[test]
-// fn z_load_database() {
-// 	const RPC_ENDPOINT: &str = "http://localhost:8545";
-// 	let connection = establish_connection();
-//     let (_eloop, http) = web3::transports::Http::new(RPC_ENDPOINT)
-//         .unwrap();
-//     let web3 = web3::Web3::new(http);
-//     let adchain_registry = adchain_registry::RegistryInstance::new(&web3);
-//     let _is_whitelisted = adchain_registry.is_in_registry("fox.com");
-//     if _is_whitelisted {
-//     	let creation = create_listing(&connection, "fox.com");
-//     	assert!(creation == 1, "Insertion failed");
-//     }
-// }
-
-// #[test]
-// fn y_load_database() {
-//     const RPC_ENDPOINT: &str = "http://localhost:8545";
-// 	let connection = establish_connection();
-//     let (_eloop, http) = web3::transports::Http::new(RPC_ENDPOINT)
-//         .unwrap();
-//     let web3 = web3::Web3::new(http);
-//     let adchain_registry = adchain_registry::RegistryInstance::new(&web3);
-//     let _is_whitelisted = adchain_registry.is_in_registry("msn.com");
-//     if _is_whitelisted {
-//     	let creation = create_listing(&connection, "msn.com");
-//     	assert!(creation == 1, "Insertion failed");
-//     }
-// }

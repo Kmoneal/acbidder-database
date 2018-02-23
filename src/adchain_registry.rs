@@ -14,7 +14,7 @@ pub struct RegistryInstance<T: web3::Transport> {
 impl<T: web3::Transport> RegistryInstance<T> {
     //
     pub fn new(web3: & web3::Web3<T>) -> RegistryInstance<T> {
-        const REGISTRY_ADDR: &str = "0x8009a230dc908e71befafba36e09efef2513640d";
+        const REGISTRY_ADDR: &str = "8009a230dc908e71befafba36e09efef2513640d";
 
         let instance = Contract::from_json(
             web3.eth(),
@@ -28,7 +28,7 @@ impl<T: web3::Transport> RegistryInstance<T> {
     
     //returns true if the domain passed in is in the adchain registry
     pub fn is_in_registry(&self, domain: &str) -> bool {
-        let my_account: Address = "0x494b26d0fea32296d5b1d011b2c1f95cb8e1d175".parse().unwrap();
+        let my_account: Address = "494b26d0fea32296d5b1d011b2c1f95cb8e1d175".parse().unwrap();
 
         let mut sha3 = Keccak::new_keccak256();
         let data: Vec<u8> = From::from(domain);
@@ -38,8 +38,6 @@ impl<T: web3::Transport> RegistryInstance<T> {
         sha3.finalize(&mut array);
     
         let hash = H256(array);
-
-        // let domain = String::from(domain).into_token();
 
         let result: bool = match self.instance
             .query("isWhitelisted", 

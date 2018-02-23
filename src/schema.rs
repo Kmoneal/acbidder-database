@@ -9,7 +9,7 @@ table! {
     requests (id) {
         id -> Integer,
         publisher -> Varchar,
-        userquality -> Nullable<Integer>,
+        userquality -> Integer,
     }
 }
 
@@ -20,4 +20,8 @@ table! {
     }
 }
 
-allow_tables_to_appear_in_same_query!(listings, requests, responses,);
+allow_tables_to_appear_in_same_query!(
+    listings,
+    requests,
+    responses,
+);

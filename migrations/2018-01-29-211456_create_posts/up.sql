@@ -7,7 +7,7 @@ CREATE TABLE listings (
 CREATE TABLE requests (
   id int NOT NULL AUTO_INCREMENT,
   publisher varchar(255) NOT NULL,
-  userquality int,
+  userquality int NOT NULL,
   PRIMARY KEY (id)
 );
 CREATE TABLE responses (
