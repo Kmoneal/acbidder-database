@@ -1,4 +1,6 @@
 use super::schema::listings;
+use super::schema::requests;
+use super::schema::responses;
 
 //listings
 #[derive(Insertable)]
