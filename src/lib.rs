@@ -23,11 +23,10 @@ use std::sync::Mutex;
 use rustc_hex::ToHex;
 
 
-use self::models::{AdServer, NewAdServer};
+use self::models::{AdServer, NewAdServer, Request, NewRequest, Response, NewResponse};
 
 pub mod schema;
 pub mod models;
-//pub mod adchain_registry;
 
 pub fn establish_connection() -> MysqlConnection {
     dotenv().ok();
@@ -37,6 +36,7 @@ pub fn establish_connection() -> MysqlConnection {
         .expect(&format!("Error connection to {}", database_url))
 }
 
+//returns number of listings created
 pub fn create_listing<'a>(conn: &MysqlConnection, domain_name: &'a str) -> usize {
     use schema::listings;
 
@@ -57,6 +57,62 @@ pub fn create_listing<'a>(conn: &MysqlConnection, domain_name: &'a str) -> usize
         Ok(val) => return val,
         Err(_) => return 0,
     }
+}
+
+//returns the id number
+pub fn create_request<'a>(conn: &MysqlConnection, publisher_name: &'a str, user_quality: i32) -> i32 {
+    use schema::requests;
+    use schema::requests::dsl::*;
+
+    let new_request = NewRequest {
+        publisher: publisher_name,
+        userquality: user_quality,
+    };
+
+    match diesel::insert_into(requests::table)
+        .values(&new_request)
+        .execute(conn)
+    {
+            Ok(val) => val,
+            Err(_) => return 0,
+    };
+    let request_inserted = match requests
+        .filter(publisher.like(publisher_name))
+        .limit(1)
+        .load::<Request>(conn)
+        {
+            Ok(val) => val,
+            Err(_) => return 0,
+        };
+
+    request_inserted[0].id
+}
+
+//returns the id number
+pub fn create_response<'a>(conn: &MysqlConnection, publisher_name: &'a str) -> i32 {
+    use schema::responses;
+    use schema::responses::dsl::*;
+
+    let new_response = NewResponse {
+        publisher: publisher_name,
+    };
+
+    match diesel::insert_into(responses::table)
+        .values(&new_response)
+        .execute(conn)
+    {
+            Ok(val) => val,
+            Err(_) => return 0,
+    };
+    let response_inserted = match responses
+        .filter(publisher.like(publisher_name))
+        .limit(1)
+        .load::<Response>(conn)
+        {
+            Ok(val) => val,
+            Err(_) => return 0,
+        };
+    response_inserted[0].id
 }
 
 //delets a listing (ad_server) with the name in domain_name and returns the number of rows deleted
