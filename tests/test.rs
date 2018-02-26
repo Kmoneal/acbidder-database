@@ -3,14 +3,25 @@ extern crate diesel;
 extern crate web3;
 
 use acbidder_database::establish_connection;
+
 use acbidder_database::create_listing;
-use acbidder_database::delete_listing;
 use acbidder_database::is_whitelisted;
+use acbidder_database::delete_listing;
+
+use acbidder_database::create_request;
+use acbidder_database::get_latest_request_id;
+use acbidder_database::delete_request;
+
+use acbidder_database::create_response;
+use acbidder_database::get_latest_response_id;
+use acbidder_database::delete_response;
+
 use acbidder_database::models::*;
 use acbidder_database::schema::listings::dsl::*;
+
 use diesel::query_dsl::limit_dsl::LimitDsl;
 use diesel::RunQueryDsl;
-use acbidder_database::adchain_registry;
+
 
 ///---------------------------------------------------------------------
 ///NOTE: Tests must be run with a clean table and using -- --test-threads=1
@@ -73,9 +84,11 @@ fn test_3_add_and_remove_ad_server_from_listing() {
 }
 
 //fourth.com
-//placeholder
+//should always succeed
 #[test]
-fn test_4() {}
+fn test_4() {
+
+}
 
 //fifth.com
 //check that special characters cannot be used as a domain name
@@ -233,5 +246,57 @@ fn test_11_add_ad_server_to_listing_and_special_character_whitelisted() {
     );
 
     let deletion = delete_listing(&connection, format!("eleventh.com"));
+    assert!(deletion == 1, "Deletion failed");
+}
+
+//twelfth.com
+//
+#[test]
+fn test_12_add_and_remove_request () {
+    let connection = establish_connection();
+    let creation = create_request(&connection, "twelfth.com", 5);
+    assert!(creation != 0, "Insertion failed");
+    let deletion = delete_request(&connection, format!("twelfth.com"));
+    assert!(deletion == 1, "Deletion failed");
+}
+
+//thirteenth.com
+//
+#[test]
+fn test_12_add_and_remove_request_check_id () {
+    let connection = establish_connection();
+    let creation = create_request(&connection, "thirteenth.com", 2);
+    assert!(creation != 0, "Insertion failed");
+
+    let identification_value = get_latest_request_id(&connection);
+    assert!(creation == identification_value, "ID value does not match the latest insertion into requests table");
+
+    let deletion = delete_request(&connection, format!("thirteenth.com"));
+    assert!(deletion == 1, "Deletion failed");
+}
+
+//fourteenth.com
+//
+#[test]
+fn test_14_add_and_remove_response () {
+    let connection = establish_connection();
+    let creation = create_response(&connection, "fourteenth.com");
+    assert!(creation != 0, "Insertion failed");
+    let deletion = delete_response(&connection, format!("fourteenth.com"));
+    assert!(deletion == 1, "Deletion failed");
+}
+
+//fifteenth.com
+//
+#[test]
+fn test_15_add_and_remove_response_check_id () {
+    let connection = establish_connection();
+    let creation = create_response(&connection, "fifteenth.com");
+    assert!(creation != 0, "Insertion failed");
+
+    let identification_value = get_latest_response_id(&connection);
+    assert!(creation == identification_value, "ID value does not match the latest insertion into requests table");
+
+    let deletion = delete_response(&connection, format!("fifteenth.com"));
     assert!(deletion == 1, "Deletion failed");
 }
