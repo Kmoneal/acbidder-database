@@ -29,6 +29,7 @@ use self::models::{AdServer, NewAdServer, Request, NewRequest, Response, NewResp
 pub mod schema;
 pub mod models;
 
+//TODO: modify to pass up error vs panicking
 pub fn establish_connection() -> MysqlConnection {
     dotenv().ok();
 
@@ -37,15 +38,22 @@ pub fn establish_connection() -> MysqlConnection {
         .expect(&format!("Error connection to {}", database_url))
 }
 
+pub fn check_string(name: & str) -> usize {
+    for character in name.chars() {
+        if !character.is_ascii_alphanumeric() && character != '.' && character != '-' {
+            return 0;
+        }
+    }
+    1
+}
+
 //returns number of listings created
 pub fn create_listing<'a>(conn: &MysqlConnection, domain_name: &'a str) -> usize {
     use schema::listings;
 
     //ensures that no special characters are used and valid domain name characters are used
-    for character in domain_name.chars() {
-        if !character.is_ascii_alphanumeric() && character != '.' && character != '-' {
-            return 0;
-        }
+    if check_string(domain_name) == 0 {
+        return 0;
     }
 
     let new_ad_server = NewAdServer {
@@ -63,10 +71,8 @@ pub fn create_listing<'a>(conn: &MysqlConnection, domain_name: &'a str) -> usize
 pub fn is_whitelisted(conn: &MysqlConnection, domain_name: String) -> bool {
     use schema::listings::dsl::*;
 
-    for character in domain_name.chars() {
-        if !character.is_ascii_alphanumeric() && character != '.' && character != '-' {
-            return false;
-        }
+    if check_string(&domain_name) == 0 {
+        return false;
     }
 
     match listings
@@ -102,6 +108,10 @@ pub fn delete_listing(conn: &MysqlConnection, domain_name: String) -> usize {
 pub fn create_request<'a>(conn: &MysqlConnection, publisher_name: &'a str, user_quality: i32) -> i32 {
     use schema::requests;
     use schema::requests::dsl::*;
+
+    if check_string(publisher_name) == 0 {
+        return 0;
+    }
 
     let new_request = NewRequest {
         publisher: publisher_name,
@@ -146,6 +156,10 @@ pub fn get_latest_request_id(conn:&MysqlConnection) -> i32 {
 pub fn delete_request(conn: &MysqlConnection, publisher_name: String) -> usize {
     use schema::requests::dsl::*;
 
+    if check_string(&publisher_name) == 0 {
+        return 0;
+    }
+
     match diesel::delete(requests.filter(publisher.like(publisher_name))).execute(conn) {
         Ok(val) => return val,
         Err(_) => return 0,
@@ -157,6 +171,10 @@ pub fn delete_request(conn: &MysqlConnection, publisher_name: String) -> usize {
 pub fn create_response<'a>(conn: &MysqlConnection, publisher_name: &'a str) -> i32 {
     use schema::responses;
     use schema::responses::dsl::*;
+
+    if check_string(publisher_name) == 0 {
+        return 0;
+    }
 
     let new_response = NewResponse {
         publisher: publisher_name,
@@ -199,12 +217,17 @@ pub fn get_latest_response_id(conn: &MysqlConnection) -> i32 {
 pub fn delete_response(conn: &MysqlConnection, publisher_name: String) -> usize {
     use schema::responses::dsl::*;
 
+    if check_string(&publisher_name) == 0 {
+        return 0;
+    }
+
     match diesel::delete(responses.filter(publisher.like(publisher_name))).execute(conn) {
         Ok(val) => return val,
         Err(_) => return 0,
     }
 }
 
+//TODO: error handling
 //listen to events and maintain database based on the events
 pub fn maintain_database() {
     //constants to compare values against
