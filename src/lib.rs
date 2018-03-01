@@ -7,6 +7,7 @@ extern crate web3;
 
 use diesel::prelude::*;
 use diesel::mysql::MysqlConnection;
+use diesel::sql_query;
 
 use dotenv::dotenv;
 
@@ -24,10 +25,18 @@ use web3::futures::Stream;
 
 use rustc_hex::ToHex;
 
-use self::models::{AdServer, NewAdServer, Request, NewRequest, Response, NewResponse};
+use self::models::*;
 
 pub mod schema;
 pub mod models;
+
+pub fn current_auto_increment_value(conn: &MysqlConnection) -> i64 {
+    let response = sql_query("SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = \"acbidder_database\" AND TABLE_NAME = \"responses\"")
+        .get_results::<AutoIncrement>(conn);
+    let response = response.unwrap();
+    println!("{:?}", response[0].AUTO_INCREMENT);
+    response[0].AUTO_INCREMENT
+}
 
 //TODO: modify to pass up error vs panicking
 pub fn establish_connection() -> MysqlConnection {

@@ -1,6 +1,7 @@
 use super::schema::listings;
 use super::schema::requests;
 use super::schema::responses;
+use diesel::sql_types::BigInt;
 
 //listings
 #[derive(Insertable)]
@@ -41,4 +42,10 @@ pub struct NewResponse<'a> {
 pub struct Response {
     pub id: i32,
     pub publisher: String,
+}
+
+#[derive(QueryableByName, Debug)]
+pub struct AutoIncrement {
+	#[sql_type = "BigInt"]
+	pub AUTO_INCREMENT: i64,
 }
