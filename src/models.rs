@@ -44,6 +44,7 @@ pub struct Response {
     pub publisher: String,
 }
 
+#[allow(non_snake_case)]
 #[derive(QueryableByName, Debug)]
 pub struct AutoIncrement {
 	#[sql_type = "BigInt"]
