@@ -22,6 +22,9 @@ use acbidder_database::schema::listings::dsl::*;
 use diesel::query_dsl::limit_dsl::LimitDsl;
 use diesel::RunQueryDsl;
 
+use acbidder_database::current_auto_increment_value_responses;
+use acbidder_database::current_auto_increment_value_requests;
+
 
 ///---------------------------------------------------------------------
 ///NOTE: Tests must be run with a clean table and using -- --test-threads=1
@@ -32,7 +35,7 @@ use diesel::RunQueryDsl;
 #[test]
 fn test_1_add_ad_server_to_listing() {
     let connection = establish_connection();
-    let creation = create_listing(&connection, "first.com");
+    let creation = create_listing(&connection, "first.com").unwrap();
     assert!(creation == 1, "Insertion failed");
 
     let results = listings
@@ -44,7 +47,7 @@ fn test_1_add_ad_server_to_listing() {
         println!("{}", ad_server.domain);
     }
 
-    let deletion = delete_listing(&connection, format!("first.com"));
+    let deletion = delete_listing(&connection, format!("first.com")).unwrap();
     assert!(deletion == 1, "Deletion failed");
 }
 
@@ -53,10 +56,14 @@ fn test_1_add_ad_server_to_listing() {
 #[test]
 fn test_2_add_invalid_ad_server_to_listing() {
     let connection = establish_connection();
-    let creation = create_listing(&connection, "second.com");
+    let creation = create_listing(&connection, "second.com").unwrap();
     assert!(creation == 1, "Insertion failed");
-    let creation = create_listing(&connection, "second.com");
-    assert!(creation == 0, "Repeat insertion succeeded");
+    match create_listing(&connection, "second.com"){
+        Ok(_) => panic!("Insert succeeded when it was supposed to fail."),
+        Err(e) => if e != "Insert for Listing failed." {
+            panic!("Repeat insertion succeeded.");
+        },
+    };
 
     let results = listings
         .limit(5)
@@ -67,7 +74,7 @@ fn test_2_add_invalid_ad_server_to_listing() {
         println!("{}", ad_server.domain);
     }
 
-    let deletion = delete_listing(&connection, format!("second.com"));
+    let deletion = delete_listing(&connection, format!("second.com")).unwrap();
     assert!(deletion == 1, "Deletion failed");
 }
 
@@ -76,10 +83,10 @@ fn test_2_add_invalid_ad_server_to_listing() {
 #[test]
 fn test_3_add_and_remove_ad_server_from_listing() {
     let connection = establish_connection();
-    let creation = create_listing(&connection, "third.com");
+    let creation = create_listing(&connection, "third.com").unwrap();
     assert!(creation == 1, "Insertion failed");
 
-    let deletion = delete_listing(&connection, format!("third.com"));
+    let deletion = delete_listing(&connection, format!("third.com")).unwrap();
     assert!(deletion == 1, "Deletion failed");
 }
 
@@ -95,27 +102,27 @@ fn test_4() {
 #[test]
 fn test_5_add_invalid_ad_server_from_listing_using_special_characters() {
     let connection = establish_connection();
-    let creation = create_listing(&connection, "*fifth.com");
-    assert!(
-        creation == 0,
-        "Insertion with special character * succeeded"
-    );
-    let creation = create_listing(&connection, "the_fifth.com");
-    assert!(
-        creation == 0,
-        "Insertion with special character _ succeeded"
-    );
-    let creation = create_listing(&connection, "%fifth.com");
-    assert!(
-        creation == 0,
-        "Insertion with special character % succeeded"
-    );
+    match create_listing(&connection, "*fifth.com"){
+        Ok(_) => panic!("Create listing succeeded when it was supposed to fail."),
+        Err(e) => if e != "Improper domain name *fifth.com" {
+            panic!("Insertion with special character * succeeded.");
+        },
+    };
+    match create_listing(&connection, "the_fifth.com"){
+        Ok(_) => panic!("Create listing succeeded when it was supposed to fail."),
+        Err(e) => if e != "Improper domain name the_fifth.com" {
+            panic!("Insertion with special character _ succeeded.");
+        },
+    };
+    match create_listing(&connection, "%fifth.com"){
+        Ok(_) => panic!("Create listing succeeded when it was supposed to fail."),
+        Err(e) => if e != "Improper domain name %fifth.com" {
+            panic!("Insertion with special character % succeeded.");
+        },
+    };
 
-    let deletion = delete_listing(&connection, format!("%fifth.com"));
-    assert!(
-        deletion == 0,
-        "Deletion succeeded when there are no matches"
-    );
+    let deletion = delete_listing(&connection, format!("%fifth.com")).unwrap();
+    assert!(deletion == 0, "Deletion succeeded when there are no matches.");
 }
 
 //sixth.com
@@ -123,11 +130,8 @@ fn test_5_add_invalid_ad_server_from_listing_using_special_characters() {
 #[test]
 fn test_6_invalid_remove_ad_server_from_listing() {
     let connection = establish_connection();
-    let deletion = delete_listing(&connection, format!("definitelyNotReal.com"));
-    assert!(
-        deletion == 0,
-        "Deletion succeeded when there are no matches"
-    );
+    let deletion = delete_listing(&connection, format!("definitelyNotReal.com")).unwrap();
+    assert!(deletion == 0, "Deletion succeeded when there are no matches.");
 }
 
 //seventh.com
@@ -135,16 +139,16 @@ fn test_6_invalid_remove_ad_server_from_listing() {
 #[test]
 fn test_7_add_ad_server_to_listing_and_valid_whitelist() {
     let connection = establish_connection();
-    let creation = create_listing(&connection, "seventh.com");
+    let creation = create_listing(&connection, "seventh.com").unwrap();
     assert!(creation == 1, "Insertion failed");
 
-    let is_whitelisted = is_whitelisted(&connection, format!("seventh.com"));
+    let is_whitelisted = is_whitelisted(&connection, format!("seventh.com")).unwrap();
     assert!(
         is_whitelisted,
         "is_whitelisted returned false when entry exists"
     );
 
-    let deletion = delete_listing(&connection, format!("seventh.com"));
+    let deletion = delete_listing(&connection, format!("seventh.com")).unwrap();
     assert!(deletion == 1, "Deletion failed");
 }
 
@@ -153,16 +157,16 @@ fn test_7_add_ad_server_to_listing_and_valid_whitelist() {
 #[test]
 fn test_8_add_ad_server_to_listing_and_invalid_whitelist() {
     let connection = establish_connection();
-    let creation = create_listing(&connection, "eighth.com");
+    let creation = create_listing(&connection, "eighth.com").unwrap();
     assert!(creation == 1, "Insertion failed");
 
-    let is_whitelisted = is_whitelisted(&connection, format!("Noteighth.com"));
+    let is_whitelisted = is_whitelisted(&connection, format!("Noteighth.com")).unwrap();
     assert!(
         !is_whitelisted,
         "is_whitelisted returned true when entry does not exits"
     );
 
-    let deletion = delete_listing(&connection, format!("eighth.com"));
+    let deletion = delete_listing(&connection, format!("eighth.com")).unwrap();
     assert!(deletion == 1, "Deletion failed");
 }
 
@@ -171,13 +175,13 @@ fn test_8_add_ad_server_to_listing_and_invalid_whitelist() {
 #[test]
 fn test_9_add_ad_server_to_listing_and_show_ad_servers() {
     let connection = establish_connection();
-    let creation = create_listing(&connection, "anineth.com");
+    let creation = create_listing(&connection, "anineth.com").unwrap();
     assert!(creation == 1, "Insertion failed");
-    let creation = create_listing(&connection, "bnineth.com");
+    let creation = create_listing(&connection, "bnineth.com").unwrap();
     assert!(creation == 1, "Insertion failed");
-    let creation = create_listing(&connection, "cnineth.com");
+    let creation = create_listing(&connection, "cnineth.com").unwrap();
     assert!(creation == 1, "Insertion failed");
-    let creation = create_listing(&connection, "dnineth.com");
+    let creation = create_listing(&connection, "dnineth.com").unwrap();
     assert!(creation == 1, "Insertion failed");
 
     let results = listings
@@ -203,7 +207,7 @@ fn test_9_add_ad_server_to_listing_and_show_ad_servers() {
         iteration += 1;
     }
 
-    let deletion = delete_listing(&connection, format!("%nineth.com"));
+    let deletion = delete_listing(&connection, format!("%nineth.com")).unwrap();
     assert!(deletion == 4, "Deletion failed");
 }
 
@@ -212,16 +216,16 @@ fn test_9_add_ad_server_to_listing_and_show_ad_servers() {
 #[test]
 fn test_10_add_ad_server_to_listing_and_special_character_deletion() {
     let connection = establish_connection();
-    let creation = create_listing(&connection, "tenth.com");
+    let creation = create_listing(&connection, "tenth.com").unwrap();
     assert!(creation == 1, "Insertion failed");
 
-    let deletion = delete_listing(&connection, format!("%.com"));
+    let deletion = delete_listing(&connection, format!("%.com")).unwrap();
     assert!(deletion == 1, "Deletion failed. There may be persisting entries from before.");
 
-    let creation = create_listing(&connection, "tenth.com");
+    let creation = create_listing(&connection, "tenth.com").unwrap();
     assert!(creation == 1, "Insertion failed");
 
-    let deletion = delete_listing(&connection, format!("te_th.com"));
+    let deletion = delete_listing(&connection, format!("te_th.com")).unwrap();
     assert!(deletion == 1, "Deletion failed");
 }
 
@@ -230,22 +234,24 @@ fn test_10_add_ad_server_to_listing_and_special_character_deletion() {
 #[test]
 fn test_11_add_ad_server_to_listing_and_special_character_whitelisted() {
     let connection = establish_connection();
-    let creation = create_listing(&connection, "eleventh.com");
+    let creation = create_listing(&connection, "eleventh.com").unwrap();
     assert!(creation == 1, "Insertion failed");
 
-    let _is_whitelisted = is_whitelisted(&connection, format!("_leventh.com"));
-    assert!(
-        !_is_whitelisted,
-        "is_whitelisted returned true when entry does not exits"
-    );
+    match is_whitelisted(&connection, format!("_leventh.com")){
+        Ok(_) => panic!("is_whitelisted succeeded when it was supposed to fail"),
+        Err(e) => if e != "Improper domain name _leventh.com" {
+            panic!("is_whitelisted returned true when entry does not exits");
+        },
+    };
 
-    let _is_whitelisted = is_whitelisted(&connection, format!("%venth.com"));
-    assert!(
-        !_is_whitelisted,
-        "is_whitelisted returned true when entry does not exits"
-    );
+    match is_whitelisted(&connection, format!("%venth.com")){
+        Ok(_) => panic!("is_whitelisted succeeded when it was supposed to fail"),
+        Err(e) => if e != "Improper domain name %venth.com" {
+            panic!("is_whitelisted returned true when entry does not exits");
+        },
+    };
 
-    let deletion = delete_listing(&connection, format!("eleventh.com"));
+    let deletion = delete_listing(&connection, format!("eleventh.com")).unwrap();
     assert!(deletion == 1, "Deletion failed");
 }
 
@@ -254,24 +260,26 @@ fn test_11_add_ad_server_to_listing_and_special_character_whitelisted() {
 #[test]
 fn test_12_add_and_remove_request () {
     let connection = establish_connection();
-    let creation = create_request(&connection, "twelfth.com", 5);
-    assert!(creation != 0, "Insertion failed");
-    let deletion = delete_request(&connection, format!("twelfth.com"));
+    let auto_increment_value = current_auto_increment_value_requests(&connection).unwrap();
+    let creation = create_request(&connection, "twelfth.com", 5).unwrap();
+    assert!(creation == auto_increment_value as i32, "Insertion failed");
+    let deletion = delete_request(&connection, format!("twelfth.com")).unwrap();
     assert!(deletion == 1, "Deletion failed");
 }
 
 //thirteenth.com
 //
 #[test]
-fn test_12_add_and_remove_request_check_id () {
+fn test_13_add_and_remove_request_check_id () {
     let connection = establish_connection();
-    let creation = create_request(&connection, "thirteenth.com", 2);
-    assert!(creation != 0, "Insertion failed");
+    let auto_increment_value = current_auto_increment_value_requests(&connection).unwrap();
+    let creation = create_request(&connection, "thirteenth.com", 2).unwrap();
+    assert!(creation == auto_increment_value as i32, "Insertion failed");
 
-    let identification_value = get_latest_request_id(&connection);
+    let identification_value = get_latest_request_id(&connection).unwrap();
     assert!(creation == identification_value, "ID value does not match the latest insertion into requests table");
 
-    let deletion = delete_request(&connection, format!("thirteenth.com"));
+    let deletion = delete_request(&connection, format!("thirteenth.com")).unwrap();
     assert!(deletion == 1, "Deletion failed");
 }
 
@@ -280,9 +288,10 @@ fn test_12_add_and_remove_request_check_id () {
 #[test]
 fn test_14_add_and_remove_response () {
     let connection = establish_connection();
-    let creation = create_response(&connection, "fourteenth.com");
-    assert!(creation != 0, "Insertion failed");
-    let deletion = delete_response(&connection, format!("fourteenth.com"));
+    let auto_increment_value = current_auto_increment_value_responses(&connection).unwrap();
+    let creation = create_response(&connection, "fourteenth.com").unwrap();
+    assert!(creation == auto_increment_value as i32, "Insertion failed");
+    let deletion = delete_response(&connection, format!("fourteenth.com")).unwrap();
     assert!(deletion == 1, "Deletion failed");
 }
 
@@ -291,12 +300,13 @@ fn test_14_add_and_remove_response () {
 #[test]
 fn test_15_add_and_remove_response_check_id () {
     let connection = establish_connection();
-    let creation = create_response(&connection, "fifteenth.com");
-    assert!(creation != 0, "Insertion failed");
+    let auto_increment_value = current_auto_increment_value_responses(&connection).unwrap();
+    let creation = create_response(&connection, "fifteenth.com").unwrap();
+    assert!(creation == auto_increment_value as i32, "Insertion failed");
 
-    let identification_value = get_latest_response_id(&connection);
+    let identification_value = get_latest_response_id(&connection).unwrap();
     assert!(creation == identification_value, "ID value does not match the latest insertion into requests table");
 
-    let deletion = delete_response(&connection, format!("fifteenth.com"));
+    let deletion = delete_response(&connection, format!("fifteenth.com")).unwrap();
     assert!(deletion == 1, "Deletion failed");
 }

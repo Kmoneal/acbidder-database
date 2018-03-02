@@ -30,12 +30,24 @@ use self::models::*;
 pub mod schema;
 pub mod models;
 
-pub fn current_auto_increment_value(conn: &MysqlConnection) -> i64 {
+pub fn current_auto_increment_value_responses(conn: &MysqlConnection) -> Result<i64, String> {
     let response = sql_query("SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = \"acbidder_database\" AND TABLE_NAME = \"responses\"")
         .get_results::<AutoIncrement>(conn);
-    let response = response.unwrap();
-    println!("{:?}", response[0].AUTO_INCREMENT);
-    response[0].AUTO_INCREMENT
+    let response = match response {
+        Ok(val) => val,
+        Err(_) => return Err(format!("AUTO_INCREMENT could not be retrieved from responses.")),
+    };
+    Ok(response[0].AUTO_INCREMENT)
+}
+
+pub fn current_auto_increment_value_requests(conn: &MysqlConnection) -> Result<i64, String> {
+    let response = sql_query("SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = \"acbidder_database\" AND TABLE_NAME = \"requests\"")
+        .get_results::<AutoIncrement>(conn);
+    let response = match response {
+        Ok(val) => val,
+        Err(_) => return Err(format!("AUTO_INCREMENT could not be retrieved from responses.")),
+    };
+    Ok(response[0].AUTO_INCREMENT)
 }
 
 //TODO: modify to pass up error vs panicking
@@ -47,22 +59,22 @@ pub fn establish_connection() -> MysqlConnection {
         .expect(&format!("Error connection to {}", database_url))
 }
 
-pub fn check_string(name: & str) -> usize {
+pub fn improper_domain_name(name: & str) -> bool {
     for character in name.chars() {
         if !character.is_ascii_alphanumeric() && character != '.' && character != '-' {
-            return 0;
+            return true;
         }
     }
-    1
+    false
 }
 
 //returns number of listings created
-pub fn create_listing<'a>(conn: &MysqlConnection, domain_name: &'a str) -> usize {
+pub fn create_listing<'a>(conn: &MysqlConnection, domain_name: &'a str) -> Result<usize, String> {
     use schema::listings;
 
     //ensures that no special characters are used and valid domain name characters are used
-    if check_string(domain_name) == 0 {
-        return 0;
+    if improper_domain_name(domain_name) {
+        return Err(format!("Improper domain name {}", domain_name));
     }
 
     let new_ad_server = NewAdServer {
@@ -72,16 +84,16 @@ pub fn create_listing<'a>(conn: &MysqlConnection, domain_name: &'a str) -> usize
         .values(&new_ad_server)
         .execute(conn)
     {
-        Ok(val) => return val,
-        Err(_) => return 0,
+        Ok(val) => return Ok(val),
+        Err(_) => return Err(format!("Insert for Listing failed.")),
     }
 }
 
-pub fn is_whitelisted(conn: &MysqlConnection, domain_name: String) -> bool {
+pub fn is_whitelisted(conn: &MysqlConnection, domain_name: String) -> Result<bool, String> {
     use schema::listings::dsl::*;
 
-    if check_string(&domain_name) == 0 {
-        return false;
+    if improper_domain_name(&domain_name) {
+        return Err(format!("Improper domain name {}", domain_name));
     }
 
     match listings
@@ -91,35 +103,34 @@ pub fn is_whitelisted(conn: &MysqlConnection, domain_name: String) -> bool {
     {
         Ok(val) => {
             if val.len() == 0 {
-                return false;
+                return Ok(false);
             } else if val.len() > 1 {
-                panic!("Too many matches to domain, something went wrong!");
+                return Err(format!("Something impossible happened."));
             } else {
-                return true;
+                return Ok(true);
             }
         }
-        Err(e) => println!("Could not check if whitelisted: {}", e),
+        Err(e) => return Err(format!("Could not check if whitelisted: {}", e)),
     }
-    return false;
 }
 
 //delets a listing (ad_server) with the name in domain_name and returns the number of rows deleted
-pub fn delete_listing(conn: &MysqlConnection, domain_name: String) -> usize {
+pub fn delete_listing(conn: &MysqlConnection, domain_name: String) -> Result<usize, String> {
     use schema::listings::dsl::*;
 
     match diesel::delete(listings.filter(domain.like(domain_name))).execute(conn) {
-        Ok(val) => return val,
-        Err(_) => return 0,
+        Ok(val) => return Ok(val),
+        Err(_) => return Err(format!("Delete for Listing failed.")),
     }
 }
 
 //returns the id number
-pub fn create_request<'a>(conn: &MysqlConnection, publisher_name: &'a str, user_quality: i32) -> i32 {
+pub fn create_request<'a>(conn: &MysqlConnection, publisher_name: &'a str, user_quality: i32) -> Result<i32, String> {
     use schema::requests;
     use schema::requests::dsl::*;
 
-    if check_string(publisher_name) == 0 {
-        return 0;
+    if improper_domain_name(publisher_name) {
+        return Err(format!("Improper domain name {}", publisher_name));
     }
 
     let new_request = NewRequest {
@@ -132,7 +143,7 @@ pub fn create_request<'a>(conn: &MysqlConnection, publisher_name: &'a str, user_
         .execute(conn)
     {
             Ok(val) => val,
-            Err(_) => return 0,
+            Err(_) => return Err(format!("Insert for Request has failed.")),
     };
     let request_inserted = match requests
         .filter(publisher.like(publisher_name))
@@ -140,14 +151,14 @@ pub fn create_request<'a>(conn: &MysqlConnection, publisher_name: &'a str, user_
         .load::<Request>(conn)
         {
             Ok(val) => val,
-            Err(_) => return 0,
+            Err(_) => return Err(format!("Could not retrieve id of newly added Request.")),
         };
 
-    request_inserted[0].id
+    Ok(request_inserted[0].id)
 }
 
 //return the id of the last request made or return 0
-pub fn get_latest_request_id(conn:&MysqlConnection) -> i32 {
+pub fn get_latest_request_id(conn:&MysqlConnection) -> Result<i32, String> {
     use schema::requests::dsl::*;
 
     let latest_request = match requests
@@ -156,33 +167,33 @@ pub fn get_latest_request_id(conn:&MysqlConnection) -> i32 {
         .load::<Request>(conn)
         {
             Ok(val) => val,
-            Err(_) => return 0,
+            Err(_) => return Err(format!("Could not retrieve id for Request.")),
         };
-    latest_request[0].id
+    Ok(latest_request[0].id)
 }
 
 //delete a request with publisher_name and returns number of rows deleted
-pub fn delete_request(conn: &MysqlConnection, publisher_name: String) -> usize {
+pub fn delete_request(conn: &MysqlConnection, publisher_name: String) -> Result<usize, String> {
     use schema::requests::dsl::*;
 
-    if check_string(&publisher_name) == 0 {
-        return 0;
+    if improper_domain_name(&publisher_name) {
+        return Err(format!("Improper domain name {}", publisher_name));
     }
 
     match diesel::delete(requests.filter(publisher.like(publisher_name))).execute(conn) {
-        Ok(val) => return val,
-        Err(_) => return 0,
+        Ok(val) => return Ok(val),
+        Err(_) => return Err(format!("Delete for Request has failed.")),
     }
 }
 
 
 //returns the id number
-pub fn create_response<'a>(conn: &MysqlConnection, publisher_name: &'a str) -> i32 {
+pub fn create_response<'a>(conn: &MysqlConnection, publisher_name: &'a str) -> Result<i32, String> {
     use schema::responses;
     use schema::responses::dsl::*;
 
-    if check_string(publisher_name) == 0 {
-        return 0;
+    if improper_domain_name(publisher_name) {
+        return Err(format!("Improper domain name {}", publisher_name));
     }
 
     let new_response = NewResponse {
@@ -194,7 +205,7 @@ pub fn create_response<'a>(conn: &MysqlConnection, publisher_name: &'a str) -> i
         .execute(conn)
     {
             Ok(val) => val,
-            Err(_) => return 0,
+            Err(_) => return Err(format!("Insert for Response has failed.")),
     };
     let response_inserted = match responses
         .filter(publisher.like(publisher_name))
@@ -202,13 +213,13 @@ pub fn create_response<'a>(conn: &MysqlConnection, publisher_name: &'a str) -> i
         .load::<Response>(conn)
         {
             Ok(val) => val,
-            Err(_) => return 0,
+            Err(_) => return Err(format!("Could not retreive id for newly added Response.")),
         };
-    response_inserted[0].id
+    Ok(response_inserted[0].id)
 }
 
 //return the id of the last response made or return 0
-pub fn get_latest_response_id(conn: &MysqlConnection) -> i32 {
+pub fn get_latest_response_id(conn: &MysqlConnection) -> Result<i32, String> {
     use schema::responses::dsl::*;
 
     let latest_response = match responses
@@ -217,22 +228,22 @@ pub fn get_latest_response_id(conn: &MysqlConnection) -> i32 {
         .load::<Response>(conn)
         {
             Ok(val) => val,
-            Err(_) => return 0,
+            Err(_) => return Err(format!("Could not retrieve id for Response.")),
         };
-    latest_response[0].id
+    Ok(latest_response[0].id)
 }
 
 //delete a response with publisher_name and returns number of rows deleted
-pub fn delete_response(conn: &MysqlConnection, publisher_name: String) -> usize {
+pub fn delete_response(conn: &MysqlConnection, publisher_name: String) -> Result<usize, String> {
     use schema::responses::dsl::*;
 
-    if check_string(&publisher_name) == 0 {
-        return 0;
+    if improper_domain_name(&publisher_name) {
+        return Err(format!("Improper domain name {}", publisher_name));
     }
 
     match diesel::delete(responses.filter(publisher.like(publisher_name))).execute(conn) {
-        Ok(val) => return val,
-        Err(_) => return 0,
+        Ok(val) => return Ok(val),
+        Err(_) => return Err(format!("Delete for Response has failed.")),
     }
 }
 
